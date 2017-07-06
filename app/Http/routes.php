@@ -19,5 +19,9 @@ Route::get('/', function () {
 // group route of student API
 Route::group(array('prefix'=>'APICheckPoint'), function(){
     Route::resource('students','StudentsController');
-    Route::post('students','StudentsController@store');
+    Route::post('students/store','StudentsController@store');
+    Route::put('students/{id}/update','StudentsController@update');
+    Route::delete('students/{id}/destroy','StudentsController@destroy');
+    Route::get('search','StudentsController@search');
+    Route::post('login','StudentsController@login');
 });
