@@ -1,18 +1,16 @@
 <?php
 
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Foundation\Validation;
 use App\Http\Requests;
-
 use App\Http\Controllers\Controller;
-
 use Illuminate\Support\Facades\Input;
-
 use DB;
-
+use Rule;
 use App\Students;
+use Illuminate\Support\Facades\Crypt;
 class StudentsController extends Controller
 {
     /**
@@ -30,6 +28,8 @@ class StudentsController extends Controller
            echo "You data don't have any record!";
        }
     }
+
+
     public function search(Request $request){
         $username = $request->input('username');
         $address = $request->input('address');
@@ -39,7 +39,13 @@ class StudentsController extends Controller
             ['address','=',$address],
             ['status','=',$status],
         ])->get();
-        return response()->json($result);
+        if($result == true){
+            return response()->json($result);
+        }else{
+           return response(array(
+                'message'=> "Sorry, don't have any record that match with this. Please try again."
+            ));
+        }
     }
 
     /**
@@ -58,38 +64,37 @@ class StudentsController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function register(Request $request)
     {
-
         ///set all field are required
         $validator = Validator::make($request->all(), [
             'username' => 'required',
             'email'    => 'required|email|unique:students',
-            'phone' => 'required',
+            'phone' => 'required|numeric',
             'address'    => 'required',
-            'status' => 'required',
-            'password'    => 'required',
+            'status' => 'required|numeric',
+            'password'    => 'required|min:6',
         ]);
-
-
-        // I want to customize message error
-//        $messages = [
-//            'required' => 'The :attribute field is required.',
-//        ];
-//        $validator = Validator::make($request->all(),$messages);
 
         //if validation = false show message error
         if($validator->fails()){
-            return response(array(
-                'error' => false,
-                'message'=>'Cannot Insert!! Something was wrong.',
-            ));
+            return response()->json(['errors'=>$validator->errors()]);
         }else{
-            Students::create($request->all());
+            //add student
+            $student = new Students;
+            $student->password = sha1($request->input('password')); //encrypt password
+            $student->username = $request->input('username');
+            $student->email = $request->input('email');
+            $student->phone = $request->input('phone');
+            $student->address = $request->input('address');
+            $student->status = $request->input('status');
+            $student->save();
+
+            //response message success
             return response(array(
-                'error' => false,
                 'student' => 'You are success register the new record.',
             ));
+            return responce()->json($validator);
         }
     }
 
@@ -102,7 +107,15 @@ class StudentsController extends Controller
     public function show($id)
     {
         $show_student = Students::find($id);
-        return response()->json($show_student);
+        if($show_student == true){
+            return response()->json($show_student);
+        }else{
+            return response(array(
+                'message'=> "Don't have any record."
+            ));
+        }
+
+
     }
 
     /**
@@ -125,26 +138,34 @@ class StudentsController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $get_id_student = Students::find($id);
         $validator = Validator::make($request->all(), [
-            'username' => 'required',
-            'email'    => 'required|email',
-            'phone' => 'required',
+            'username' => 'required|alpha',
+            'email'    => 'required|email|unique:students,email,'.$id,
+            'phone' => 'required|numeric',
             'address'    => 'required',
-            'status' => 'required',
-            'password'    => 'required',
+            'status' => 'required|numeric',
+            'password'    => 'required|min:6',
         ]);
         if($validator->fails()){
-            return response(array(
-                'error' => false,
-                'message'=>'Cannot Insert!! Something was wrong.',
-            ));
-        }else{
+            return response()->json(['errors'=>$validator->errors()]);
+        }else if($get_id_student){ // if id from input = id in database
+            $update_student = Students::find($id); //get id of student
+            $update_student->password = sha1($request->input('password'));//encrypt password
+            $update_student->username = $request->input('username');
+            $update_student->email = $request->input('email');
+            $update_student->phone = $request->input('phone');
+            $update_student->address = $request->input('address');
+            $update_student->status = $request->input('status');
+            $update_student->save();
 
-            $update_student = Students::find($id)->update($request->all()); //update student
             $update_student = Students::find($id); // display student after update
             return response()->json($update_student);
+        }else{
+            return response(array(
+                'message'=> 'Update failed. Please check ID again.'
+            ));
         }
-
     }
 
     /**
@@ -155,21 +176,41 @@ class StudentsController extends Controller
      */
     public function destroy($id)
     {
-        $delete_student = Students::find($id)->delete();
-        return response(array(
-            'error'=>false,
-            'message'=> 'You successful delete the record.'
-        ));
+        $delete_student = Students::find($id);
+        if($delete_student){
+            Students::find($id)->delete();
+            return response(array(
+                'message'=> 'You successful delete the record.'
+            ));
+        }else{
+            return response(array(
+                'message'=> 'Delete failed. Please check ID again.'
+            ));
+        }
     }
 
-
+    //function login
     public function login(Request $request){
-        $email_student = $request->email;
-        $password = $request->password;
-        $result = DB::table('students')->select('*')->where([
-            ['email','=',$email_student],
-            ['password','=',$password]
-        ])->get();
-        return response()->json($result);
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
+        if($validator->fails()){
+            return response()->json(['errors'=>$validator->errors()]);
+        }else if($validator == true){
+            $email_student = $request->email;
+            $password = $request->password;
+            $result = DB::table('students')->select('*')->where([
+                ['email','=',$email_student],
+                ['password','=',sha1($password)]
+            ])->get();
+            if($result == true){
+                return response()->json($result);
+            }else{
+            return response(array(
+                'message'=> "Your login failed. Please check your email and password again."
+            ));
+            }
+        }
     }
 }

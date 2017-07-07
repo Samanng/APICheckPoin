@@ -18,10 +18,11 @@ Route::get('/', function () {
 
 // group route of student API
 Route::group(array('prefix'=>'APICheckPoint'), function(){
-    Route::resource('students','StudentsController');
-    Route::post('students/store','StudentsController@store');
+    Route::get('students','StudentsController@index');
+    Route::post('students/register','StudentsController@register');
     Route::put('students/{id}/update','StudentsController@update');
     Route::delete('students/{id}/destroy','StudentsController@destroy');
-    Route::get('search','StudentsController@search');
-    Route::post('login','StudentsController@login');
+    Route::get('students/search','StudentsController@search');
+    Route::post('students/login','StudentsController@login');
+    Route::get('students/{id}','StudentsController@show');
 });

@@ -11,8 +11,8 @@ use Illuminate\Foundation\Auth\Access\AuthorizesResources;
 class Controller extends BaseController
 {
     use AuthorizesRequests, AuthorizesResources, DispatchesJobs, ValidatesRequests;
-//    public function __construct()
-//    {
-//        $this->middleware('configApi'); // call middleware name configApi that set in Kernel.php
-//    }
+    public function __construct()
+    {
+        $this->middleware('setApiKey'); // call middleware name configApi that set in Kernel.php
+    }
 }
